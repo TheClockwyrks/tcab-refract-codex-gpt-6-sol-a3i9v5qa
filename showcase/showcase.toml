@@ -1,0 +1,15 @@
+[[media]]
+file = "trace.json.gz"
+name = "A beam solves the first board"
+
+[[media]]
+file = "board.png"
+name = "The optical bench"
+
+[[media]]
+file = "title.png"
+name = "Choose a way to play"
+
+[[media]]
+file = "select.png"
+name = "The Campaign course"
