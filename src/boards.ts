@@ -76,31 +76,68 @@ export function channelsOf(board: BoardState): Channel[] {
   );
 }
 
-// Built from dense, solvable campaign layouts. Mirrors and rotations keep the
-// challenge fresh without changing the optical constraints of the source board.
-const cascadePools: readonly (readonly (readonly string[])[])[] = [
-  CAMPAIGN.slice(0, 6),
-  CAMPAIGN.slice(6, 10),
-  CAMPAIGN.slice(10, 12),
-  CAMPAIGN.slice(13, 18),
-  [...CAMPAIGN.slice(19, 22), CAMPAIGN[23]],
+// These templates meet the corresponding tier's route and solution bounds.
+// Empty border cells, transposition, and reflection preserve their solutions
+// and all five difficulty measures while allowing every grid size in the ladder.
+const transpose = (rows: readonly string[]): string[] =>
+  Array.from({ length: rows[0].length }, (_, col) =>
+    rows.map((row) => row[col]).join(""),
+  );
+const padRight = (rows: readonly string[]): string[] =>
+  rows.map((row) => row + ".");
+const padBottom = (rows: readonly string[]): string[] => [
+  ...rows,
+  ".".repeat(rows[0].length),
+];
+const tier3Small = ["tSss", "22ss", "Ttss", "tTS."];
+const tier4Compact = [".2ttT", "DT2s.", "dd2SS", "dD.s."];
+const tier5Large = [".tt2dd", ".t2t2d", "t1D.dd", "2.S3dD", "TT2sS.", ".ssss."];
+type TemplatePool = Readonly<Record<string, readonly (readonly string[])[]>>;
+const cascadePools: readonly TemplatePool[] = [
+  {
+    "3x3": CAMPAIGN.slice(0, 2),
+    "4x3": CAMPAIGN.slice(2, 4),
+    "3x4": CAMPAIGN.slice(2, 4).map(transpose),
+    "4x4": CAMPAIGN.slice(4, 6),
+  },
+  {
+    "4x4": [CAMPAIGN[6], CAMPAIGN[8]],
+    "5x4": [CAMPAIGN[7], CAMPAIGN[9]],
+  },
+  {
+    "4x4": [tier3Small],
+    "5x4": CAMPAIGN.slice(10, 12),
+    "4x5": CAMPAIGN.slice(10, 12).map(transpose),
+    "5x5": CAMPAIGN.slice(10, 12).map(padBottom),
+  },
+  {
+    "5x4": [tier4Compact],
+    "6x4": [padRight(tier4Compact)],
+    "5x5": [CAMPAIGN[13]],
+    "6x5": [padRight(CAMPAIGN[13]), CAMPAIGN[16]],
+  },
+  {
+    "6x5": [CAMPAIGN[20]],
+    "7x5": [padRight(CAMPAIGN[20])],
+    "6x6": [tier5Large],
+    "7x6": [padRight(tier5Large)],
+  },
 ];
 export function generateBoard(tier: number): BoardState {
   const rung = TIERS[tier - 1];
   if (!rung) throw new Error(`Invalid tier: ${tier}`);
-  const pool = cascadePools[tier - 1];
+  const cols =
+    rung.minCols +
+    Math.floor(Math.random() * (rung.maxCols - rung.minCols + 1));
+  const rowsCount =
+    rung.minRows +
+    Math.floor(Math.random() * (rung.maxRows - rung.minRows + 1));
+  const pool = cascadePools[tier - 1][`${cols}x${rowsCount}`];
+  if (!pool)
+    throw new Error(`Missing cascade templates for ${cols}x${rowsCount}`);
   const source = pool[Math.floor(Math.random() * pool.length)];
-  const canTranspose =
-    source.length >= rung.minCols &&
-    source.length <= rung.maxCols &&
-    source[0].length >= rung.minRows &&
-    source[0].length <= rung.maxRows;
   const oriented =
-    canTranspose && Math.random() < 0.5
-      ? Array.from({ length: source[0].length }, (_, col) =>
-          source.map((row) => row[col]).join(""),
-        )
-      : [...source];
+    cols === rowsCount && Math.random() < 0.5 ? transpose(source) : [...source];
   const flipX = Math.random() < 0.5;
   const flipY = Math.random() < 0.5;
   const rows = flipY ? [...oriented].reverse() : oriented;
